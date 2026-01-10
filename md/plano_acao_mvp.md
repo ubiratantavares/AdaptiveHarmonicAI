@@ -4,8 +4,6 @@ Este documento detalha o plano tático para os próximos 60 dias, focado exclusi
 
 **Objetivo Central:** Transformar o motor matemático atual em uma interface web interativa que prove a tese de "Governança da Criatividade Musical" para educadores e produtores.
 
----
-
 ## 📅 Cronograma Geral (60 Dias)
 
 | Fase | Duração | Foco Principal | Entregável Final |
@@ -46,8 +44,6 @@ Este documento detalha o plano tático para os próximos 60 dias, focado exclusi
 * **[ ] Tarefa 4.2:** Deploy em ambiente acessível (ex: Streamlit Cloud ou servidor próprio).
 * **[x] Tarefa 4.3:** Preparação dos dados de demonstração (as melodias "controladas" definidas no Prompt 15).
 
----
-
 ## 🧪 Fase 2: Validação de Mercado (Semanas 5-6)
 
 **Meta:** Confirmar se a "explicabilidade" gera confiança e se há sinal de compra.
@@ -66,8 +62,6 @@ Este documento detalha o plano tático para os próximos 60 dias, focado exclusi
   * Frequência de uso da intervenção.
   * Tentativas de exportação (sinal de compra).
 
----
-
 ## 💼 Fase 3: Consolidação Institucional (Semanas 7-8)
 
 **Meta:** Transformar o aprendizado técnico e de mercado em ativos de negócio.
@@ -83,9 +77,3 @@ Este documento detalha o plano tático para os próximos 60 dias, focado exclusi
 * **Tarefa 8.1:** Criar Pitch Deck (10 slides) baseado no *Project Charter*.
 * **Tarefa 8.2:** Definir identidade visual básica (Logo e Paleta "Glass Box").
 * **Tarefa 8.3:** Planejamento do próximo ciclo (Integração VST/DAW).
-
----
-
-## 🚀 Próximo Passo Imediato
-
-**Iniciar Semana 1, Tarefa 1.1:** Refatorar `HarmonyPredictor` para suportar explicabilidade detalhada.
