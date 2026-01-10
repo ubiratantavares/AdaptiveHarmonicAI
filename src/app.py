@@ -29,12 +29,13 @@ def get_bootstrap_data():
     """Inicializa o banco de dados de acordes (Mock)"""
     return {
         "C": ChordModel.create("C", ["C", "E", "G"], "T"),
-        "Dm": ChordModel.create("Dm", ["D", "F", "A"], "S"),
-        "Em": ChordModel.create("Em", ["E", "G", "B"], "T"),
+        "Dm": ChordModel.create("Dm", ["D", "F", "A"], "Sr"),
+        "Em": ChordModel.create("Em", ["E", "G", "B"], "Ta"),
         "F": ChordModel.create("F", ["F", "A", "C"], "S"),
         "G": ChordModel.create("G", ["G", "B", "D"], "D"),
-        "Am": ChordModel.create("Am", ["A", "C", "E"], "T"),
-        "Bdim": ChordModel.create("Bdim", ["B", "D", "F"], "D")
+        "Am(Tr)": ChordModel.create("Am", ["A", "C", "E"], "Tr"), # Am como Tônica
+        "Am(Sa)": ChordModel.create("Am", ["A", "C", "E"], "Sa"), # Am como Subdominante
+        "Bdim": ChordModel.create("Bdim", ["B", "D", "F"], "D*")
     }
 
 def main():
@@ -50,11 +51,18 @@ def main():
         beta = st.slider("Peso Melódico (Tensão)", 0.0, 1.0, 0.6, help="Quanto maior, mais a IA prefere notas da melodia no acorde.")
         
         st.divider()
-        st.info("Melodia de Teste (C Major)")
+        st.info("Melodia de Teste (Prompt 19 - 8 Compassos)")
         # Input simplificado de melodia (Lista de notas por compasso)
         # Futuro: Input MIDI real
         melody_input = [
-            ["C"], ["B"], ["A"], ["G"]
+            ["C"],          # 1. C
+            ["B"],          # 2. G/B
+            ["A"],          # 3. Am
+            ["G"],          # 4. C/G
+            ["A"],          # 5. F
+            ["G"],          # 6. C/E
+            ["G", "A"],     # 7. Dsus -> D/F#
+            ["B", "G", "A", "B"] # 8. G -> G/B
         ]
         st.write(melody_input)
 
@@ -109,9 +117,9 @@ def main():
                 current_func = st.session_state.interventions.get(i, "Auto")
                 new_func = st.selectbox(
                     "Forçar Função:",
-                    ["Auto", "T", "S", "D"],
+                    ["Auto", "T", "Tr", "Ta", "S", "Sr", "Sa", "D", "D*"],
                     key=f"func_{i}",
-                    index=["Auto", "T", "S", "D"].index(current_func)
+                    index=["Auto", "T", "Tr", "Ta", "S", "Sr", "Sa", "D", "D*"].index(current_func)
                 )
                 
                 # Atualiza intervenção se mudou
