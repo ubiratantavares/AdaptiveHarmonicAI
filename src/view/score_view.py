@@ -51,16 +51,20 @@ class ScoreView:
                 r.quarterLength = 4.0
                 m.append(r)
             else:
-                # Cria o acorde
-                # Precisamos das notas do acorde. O DecisionLog tem o nome.
-                # No MVP, vamos recriar o acorde pelo nome simples ou passar as notas no DecisionLog.
-                # Para simplificar sem refatorar tudo, vamos usar o music21 para inferir as notas pelo nome
-                # OU (melhor) o DecisionLog deveria ter as notas.
-                # Como o music21 é esperto, chord.Chord("C") funciona.
+                # Cria o acorde usando as notas exatas (Voices) da decisão
+                # Isso garante que a inversão escolhida (ex: 1ª Inv) seja respeitada no MusicXML
+                if decision.chord_notes:
+                    c = chord.Chord(decision.chord_notes)
+                else:
+                    # Fallback se não houver notas (compatibilidade)
+                    c = chord.Chord(decision.chord_name)
                 
-                c = chord.Chord(decision.chord_name)
                 c.quarterLength = 4.0 # Acorde dura o compasso todo
                 c.addLyric(decision.function) # Adiciona a função como letra/texto
+                
+                # Adiciona o nome do acorde como anotação (opcional, mas útil)
+                c.addLyric(decision.chord_name)
+                
                 m.append(c)
             
             part_harmony.append(m)
