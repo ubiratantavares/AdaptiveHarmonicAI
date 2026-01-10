@@ -13,12 +13,13 @@ def main():
     # 1. Setup do Universo Harmônico (Bootstrap)
     chords_db = {
         "C": ChordModel.create("C", ["C", "E", "G"], "T"),
-        "Dm": ChordModel.create("Dm", ["D", "F", "A"], "S"),
-        "Em": ChordModel.create("Em", ["E", "G", "B"], "T"),
+        "Dm": ChordModel.create("Dm", ["D", "F", "A"], "Sr"),
+        "Em": ChordModel.create("Em", ["E", "G", "B"], "Ta"),
         "F": ChordModel.create("F", ["F", "A", "C"], "S"),
         "G": ChordModel.create("G", ["G", "B", "D"], "D"),
-        "Am": ChordModel.create("Am", ["A", "C", "E"], "T"),
-        "Bdim": ChordModel.create("Bdim", ["B", "D", "F"], "D")
+        "Am(Tr)": ChordModel.create("Am", ["A", "C", "E"], "Tr"),
+        "Am(Sa)": ChordModel.create("Am", ["A", "C", "E"], "Sa"),
+        "Bdim": ChordModel.create("Bdim", ["B", "D", "F"], "D*")
     }
 
     # 2. Input (Melodia de Teste - Prompt 15)
@@ -43,8 +44,13 @@ def main():
 
     for i, decision in enumerate(timeline_auto):
         print(f"Compasso {i+1}: {decision.chord_name} ({decision.function})")
+        print(f"   Voices: {decision.chord_notes}")
         print(f"   Justificativa: {decision.justification}")
-        print(f"   Score Total: {decision.total_score:.4f} (VL: {decision.vl_score}, Func: {decision.function_score})")
+        print(f"   Matriz de Decisão:")
+        print(f"     - Gramática: {decision.grammar_score:.4f}")
+        print(f"     - Presença Melódica: {decision.melody_presence_score:.4f}")
+        print(f"     - Voice Leading: {decision.voice_leading_score:.4f}")
+        print(f"   Score Total: {decision.total_score:.6f}")
         print("-" * 40)
 
     # 5. Execução 2: Modo Governança (Intervenção no Compasso 2)

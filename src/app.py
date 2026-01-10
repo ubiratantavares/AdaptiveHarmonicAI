@@ -102,11 +102,17 @@ def main():
                 # Acorde Principal
                 st.markdown(f"### {decision.chord_name}")
                 st.markdown(f"**Função:** `{decision.function}`")
+                st.caption(f"🎹 Voices: {', '.join(decision.chord_notes)}")
                 
-                # Scores (Glass Box)
-                col_a, col_b = st.columns(2)
-                col_a.metric("Voice Leading", f"{decision.vl_score:.2f}")
-                col_b.metric("Funcional", f"{decision.function_score:.2f}")
+                # Scores (Glass Box) - Matriz de Decisão Detalhada
+                with st.expander("Matriz de Decisão"):
+                    c1, c2 = st.columns(2)
+                    c1.metric("Gramática", f"{decision.grammar_score:.2f}", help="Probabilidade da transição funcional (Diagrama)")
+                    c2.metric("Presença Melódica", f"{decision.melody_presence_score:.2f}", help="Score baseado na presença da nota da melodia no acorde")
+                    
+                    c3, c4 = st.columns(2)
+                    c3.metric("Voice Leading", f"{decision.voice_leading_score:.2f}", help="Suavidade do movimento das vozes (física)")
+                    c4.metric("Score Total", f"{decision.total_score:.4f}")
                 
                 # Justificativa
                 st.markdown("---")

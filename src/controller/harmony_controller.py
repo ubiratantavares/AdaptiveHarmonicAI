@@ -35,15 +35,18 @@ class HarmonyController:
             # Verifica se há intervenção do usuário para este compasso
             forced = forced_functions.get(i)
 
+            # Regra Fundamental: O primeiro compasso (i=0) deve ser Tônica (T) por definição tonal,
+            # a menos que o usuário force outra coisa explicitamente.
+            if i == 0 and forced is None:
+                forced = "T"
+
             # Pede ao oráculo (Predictor) a melhor decisão
             decision = self.predictor.predict(prev_chord, measure_semitones, forced_function=forced)
             
             timeline.append(decision)
 
             # Atualiza o acorde anterior para a próxima iteração
-            # Precisamos recuperar o objeto ChordModel completo a partir do nome na decisão
-            # (Assumindo que o predictor tem acesso ao mapa de acordes, aqui fazemos um lookup reverso simplificado ou o predictor poderia retornar o objeto)
-            # Para simplificar este MVP, vamos buscar no dicionário do predictor:
-            prev_chord = self.predictor.chords.get(decision.chord_name, prev_chord)
+            # Usamos a chord_key para recuperar o objeto exato do dicionário (ex: "Am(Tr)")
+            prev_chord = self.predictor.chords.get(decision.chord_key, prev_chord)
 
         return timeline

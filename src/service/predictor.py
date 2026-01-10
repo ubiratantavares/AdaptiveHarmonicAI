@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from ..model.models import ChordModel, DecisionLog
+from ..model.models import ChordModel, DecisionLog, NoteModel
 from ..model.grammar import FunctionalGrammar, FunctionalDistribution
 from ..service.math_services import DistanceService, ProbabilityService
 
@@ -15,89 +15,110 @@ class HarmonyPredictor:
 
     def predict(self, prev_chord: ChordModel, melody_semitones: List[int], forced_function: Optional[str] = None) -> DecisionLog:
         """
-        Prevê o próximo acorde dado o anterior e a melodia.
-        Suporta 'forced_function' para intervenção do usuário (Governança).
+        Prevê o próximo acorde seguindo o processo de pensamento crítico de 4 etapas:
+        1. Análise do Diagrama (Gramática)
+        2. Função/Contexto
+        3. Análise da Nota do Próximo Compasso (Presença Melódica)
+        4. Minimização do Esforço (Voice Leading)
         """
         best_decision = None
         best_score = -1.0
-
         # Itera sobre todos os acordes candidatos
-        for chord in self.chords.values():
+        for key, base_chord in self.chords.items():
             
-            # 1. Filtro de Governança (Intervenção do Usuário)
-            if forced_function and chord.function != forced_function:
+            # 0. Filtro de Governança
+            if forced_function and base_chord.function != forced_function:
                 continue
 
-            # 2. Cálculo das Probabilidades Parciais
-            
-            # P(Função | Função Anterior)
-            p_func_trans = FunctionalGrammar.prob(chord.function, prev_chord.function)
-            
-            # P(Acorde | Função)
-            p_chord_func = FunctionalDistribution.prob(chord.name, chord.function)
+            # Gera inversões para avaliar qual voicing encaixa melhor na melodia
+            candidates = base_chord.generate_inversions()
 
-            # Se a transição é proibida pela gramática, descarta (score 0)
-            if p_func_trans == 0 or p_chord_func == 0:
-                continue
-
-            # Distância de Voice Leading
-            dvl = DistanceService.voice_leading(prev_chord.notes, chord.notes)
-            p_vl = self.ps.vl_prob(dvl)
-
-            # Distância Melódica
-            dm = DistanceService.melody_distance(chord.notes, melody_semitones)
-            p_mel = self.ps.mel_prob(dm)
-
-            # 3. Score Total (Produto das probabilidades - Naive Bayes Híbrido)
-            total_score = p_func_trans * p_chord_func * p_vl * p_mel
-
-            # 4. Seleção do Melhor Candidato
-            if total_score > best_score:
-                best_score = total_score
+            for chord in candidates:
+                # 1. Análise do Diagrama (Gramática) - Baseado na função do acorde base
+                p_grammar = FunctionalGrammar.prob(chord.function, prev_chord.function)
                 
-                # Gera a justificativa textual (Explainability)
-                justification = self._generate_justification(
-                    prev_chord, chord, p_func_trans, dvl, dm
-                )
+                # Usa o nome base para probabilidade de distribuição (remove sufixos de inversão)
+                base_name = chord.name.split(" (")[0]
+                p_context = FunctionalDistribution.prob(base_name, chord.function)
 
-                best_decision = DecisionLog(
-                    chord_name=chord.name,
-                    function=chord.function,
-                    vl_score=round(p_vl, 4),
-                    tension_score=round(p_mel, 4), # Usando dist melódica como proxy de tensão/dissonância
-                    function_score=round(p_func_trans, 4),
-                    total_score=round(total_score, 6),
-                    justification=justification
-                )
+                if p_grammar == 0 or p_context == 0:
+                    continue
 
-        # Fallback caso nenhum acorde satisfaça (ex: restrição impossível)
+                # 2. Voice Leading (Minimização do Esforço)
+                dvl = DistanceService.voice_leading(prev_chord.notes, chord.notes)
+                p_vl = self.ps.vl_prob(dvl)
+
+                # 3. Análise da Nota do Próximo Compasso (Presença Melódica + Voicing)
+                # Verifica explicitamente se as notas da melodia estão no acorde
+                melody_notes_in_chord = [n for n in melody_semitones if n in chord.notes]
+                presence_ratio = len(melody_notes_in_chord) / max(len(melody_semitones), 1)
+                
+                # CRÍTICO: Verifica se a NOTA MAIS AGUDA (última da lista de voices) é a nota da melodia
+                # Isso implementa a estratégia de "Melodia no Soprano"
+                top_voice = chord.notes[-1]
+                is_melody_on_top = 1.0 if (melody_semitones and top_voice in melody_semitones) else 0.0
+                
+                # Distância melódica geral
+                dm = DistanceService.melody_distance(chord.notes, melody_semitones)
+                p_mel_dist = self.ps.mel_prob(dm)
+                
+                # Score Melódico Refinado:
+                # 50% Presença Geral + 30% Melodia no Topo + 20% Proximidade
+                p_melody = (presence_ratio * 0.5) + (is_melody_on_top * 0.3) + (p_mel_dist * 0.2)
+
+                # 4. Score Total
+                total_score = p_grammar * p_context * p_vl * p_melody
+
+                if total_score > best_score:
+                    best_score = total_score
+                    
+                    justification = self._generate_justification(
+                        prev_chord, chord, p_grammar, dvl, melody_semitones, melody_notes_in_chord, is_melody_on_top
+                    )
+
+                    best_decision = DecisionLog(
+                        chord_name=chord.name,
+                        chord_key=key, # Mantém a chave original para lookup de contexto
+                        function=chord.function,
+                        chord_notes=chord.notes_name,
+                        vl_score=round(p_vl, 4),
+                        tension_score=round(p_melody, 4),
+                        function_score=round(p_grammar, 4),
+                        total_score=round(total_score, 6),
+                        justification=justification,
+                        # Detailed Factors
+                        grammar_score=round(p_grammar, 4),
+                        melody_presence_score=round(p_melody, 4),
+                        voice_leading_score=round(p_vl, 4)
+                    )
+
         if best_decision is None:
-            return DecisionLog("N/A", "N/A", 0, 0, 0, 0, "Nenhuma opção válida encontrada para os critérios.")
+            return DecisionLog("N/A", "N/A", "N/A", [], 0, 0, 0, 0, "Nenhuma opção válida encontrada.", 0, 0, 0)
 
         return best_decision
 
-    def _generate_justification(self, prev: ChordModel, curr: ChordModel, p_func: float, dvl: int, dm: float) -> str:
+    def _generate_justification(self, prev: ChordModel, curr: ChordModel, p_grammar: float, dvl: int, melody_notes: List[int], notes_in_chord: List[int], is_melody_on_top: float = 0.0) -> str:
         """
-        Gera uma explicação em linguagem natural para a decisão.
+        Gera uma explicação narrativa focada nos 4 fatores críticos.
         """
         reasons = []
         
-        # Explicação Funcional
+        # 1. Gramática
         if prev.function == curr.function:
-            reasons.append(f"Mantém a função {curr.function} (estabilidade).")
+            reasons.append(f"Mantém função {curr.function}.")
         else:
-            reasons.append(f"Transição funcional de {prev.function} para {curr.function}.")
+            reasons.append(f"Move de {prev.function} para {curr.function}.")
 
-        # Explicação Física (Voice Leading)
-        if dvl == 0:
-            reasons.append("Movimento de vozes nulo (estático).")
-        elif dvl <= 2:
-            reasons.append(f"Condução de vozes muito suave ({dvl} semitons).")
+        # 2. Melodia (Crítico: Mencionar a nota)
+        if notes_in_chord:
+            if is_melody_on_top > 0:
+                reasons.append(f"Melodia ({NoteModel.from_semitone(melody_notes[0])}) está no topo do voicing.")
+            else:
+                reasons.append(f"Nota(s) da melodia presente(s) no acorde.")
         else:
-            reasons.append(f"Salto harmônico significativo ({dvl} semitons).")
+            reasons.append("Melodia gera tensão (não pertence ao acorde).")
 
-        # Explicação Melódica
-        if dm < 1.0:
-            reasons.append("Alta consonância com a melodia.")
+        # 3. Voice Leading
+        reasons.append(f"Movimento de {dvl} semitons.")
         
         return " ".join(reasons)

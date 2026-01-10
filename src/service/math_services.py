@@ -12,18 +12,22 @@ class DistanceService:
     def voice_leading(chord1_notes: List[int], chord2_notes: List[int]) -> int:
         """
         Calcula a distância mínima de condução de vozes (Voice Leading)
-        considerando todas as permutações possíveis das notas do segundo acorde.
+        de forma estrita (voz a voz) e modular (menor caminho na oitava).
         """
-        # Se os acordes tiverem tamanhos diferentes, ajusta para a menor cardinalidade para evitar erro
-        # (Numa implementação real, trataríamos voicings abertos/fechados)
+        # Se os acordes tiverem tamanhos diferentes, ajusta para a menor cardinalidade
         min_len = min(len(chord1_notes), len(chord2_notes))
         c1 = chord1_notes[:min_len]
         c2 = chord2_notes[:min_len]
 
-        return min(
-            sum(abs(a - b) for a, b in zip(c1, p))
-            for p in itertools.permutations(c2)
-        )
+        total_dist = 0
+        for n1, n2 in zip(c1, c2):
+            diff = abs(n1 - n2)
+            # Distância modular (menor caminho no relógio de 12 notas)
+            # Ex: 0 (C) -> 11 (B) = min(11, 12-11) = 1
+            dist = min(diff, 12 - diff)
+            total_dist += dist
+
+        return total_dist
 
     @staticmethod
     def melody_distance(chord_notes: List[int], melody_notes: List[int]) -> float:
