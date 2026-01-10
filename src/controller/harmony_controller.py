@@ -41,12 +41,18 @@ class HarmonyController:
                 forced = "T"
 
             # Pede ao oráculo (Predictor) a melhor decisão
-            decision = self.predictor.predict(prev_chord, measure_semitones, forced_function=forced)
+            # Para o primeiro compasso, ignoramos o VL para permitir que a melodia dite a inversão inicial.
+            decision = self.predictor.predict(prev_chord, measure_semitones, forced_function=forced, ignore_vl=(i==0))
             
             timeline.append(decision)
 
             # Atualiza o acorde anterior para a próxima iteração
-            # Usamos a chord_key para recuperar o objeto exato do dicionário (ex: "Am(Tr)")
-            prev_chord = self.predictor.chords.get(decision.chord_key, prev_chord)
+            # CRÍTICO: Precisamos usar a inversão exata escolhida, não o acorde base do DB.
+            # Reconstruímos um ChordModel temporário com as notas da decisão.
+            prev_chord = ChordModel.create(
+                decision.chord_name, 
+                decision.chord_notes, 
+                decision.function
+            )
 
         return timeline

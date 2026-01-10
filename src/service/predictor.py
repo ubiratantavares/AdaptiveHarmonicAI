@@ -13,7 +13,7 @@ class HarmonyPredictor:
         self.chords = chords
         self.ps = prob_service
 
-    def predict(self, prev_chord: ChordModel, melody_semitones: List[int], forced_function: Optional[str] = None) -> DecisionLog:
+    def predict(self, prev_chord: ChordModel, melody_semitones: List[int], forced_function: Optional[str] = None, ignore_vl: bool = False) -> DecisionLog:
         """
         Prevê o próximo acorde seguindo o processo de pensamento crítico de 4 etapas:
         1. Análise do Diagrama (Gramática)
@@ -45,8 +45,12 @@ class HarmonyPredictor:
                     continue
 
                 # 2. Voice Leading (Minimização do Esforço)
-                dvl = DistanceService.voice_leading(prev_chord.notes, chord.notes)
-                p_vl = self.ps.vl_prob(dvl)
+                if ignore_vl:
+                    dvl = 0
+                    p_vl = 1.0
+                else:
+                    dvl = DistanceService.voice_leading(prev_chord.notes, chord.notes)
+                    p_vl = self.ps.vl_prob(dvl)
 
                 # 3. Análise da Nota do Próximo Compasso (Presença Melódica + Voicing)
                 # Verifica explicitamente se as notas da melodia estão no acorde
@@ -63,8 +67,13 @@ class HarmonyPredictor:
                 p_mel_dist = self.ps.mel_prob(dm)
                 
                 # Score Melódico Refinado:
-                # 50% Presença Geral + 30% Melodia no Topo + 20% Proximidade
-                p_melody = (presence_ratio * 0.5) + (is_melody_on_top * 0.3) + (p_mel_dist * 0.2)
+                # Prioridade ABSOLUTA para Melodia no Topo (0.8)
+                # Isso força o sistema a escolher a inversão correta mesmo com custo de VL
+                p_melody = (presence_ratio * 0.2) + (is_melody_on_top * 0.8) + (p_mel_dist * 0.1)
+
+                # Penalidade severa se a nota existe no acorde mas não está no topo
+                if presence_ratio > 0 and is_melody_on_top == 0:
+                    p_melody *= 0.3
 
                 # 4. Score Total
                 total_score = p_grammar * p_context * p_vl * p_melody
