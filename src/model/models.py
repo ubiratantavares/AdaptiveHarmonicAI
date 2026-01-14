@@ -83,8 +83,22 @@ class DecisionLog:
     voice_leading_score: float = 0.0
 
 @dataclass
+class MelodyNote:
+    name: str
+    octave: int
+    duration: float
+    is_rest: bool = False
+
+    def __repr__(self):
+        if self.is_rest:
+            return "Rest"
+        return f"{self.name}{self.octave}({self.duration})"
+
+@dataclass
 class MelodyModel:
-    measures: List[List[str]]
+    measures: List[List[MelodyNote]]
 
     def get_measure_semitones(self, index: int) -> List[int]:
-        return [NoteModel.MAP[n] for n in self.measures[index]]
+        # Extrai apenas os nomes das notas para o cálculo harmônico
+        # Ignora pausas para fins de harmonia (ou trata como silêncio)
+        return [NoteModel.MAP[n.name] for n in self.measures[index] if not n.is_rest]

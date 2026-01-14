@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 from src.model.models import ChordModel, MelodyModel
 from src.service.math_services import ProbabilityService
 from src.service.predictor import HarmonyPredictor
+from src.service.music_xml_parser import MusicXMLParser
 from src.controller.harmony_controller import HarmonyController
 
 # Configuração da Página
@@ -51,20 +52,36 @@ def main():
         beta = st.slider("Peso Melódico (Tensão)", 0.0, 1.0, 0.6, help="Quanto maior, mais a IA prefere notas da melodia no acorde.")
         
         st.divider()
-        st.info("Melodia de Teste (Prompt 19 - 8 Compassos)")
-        # Input simplificado de melodia (Lista de notas por compasso)
-        # Futuro: Input MIDI real
-        melody_input = [
-            ["C"],          # 1. C
-            ["B"],          # 2. G/B
-            ["A"],          # 3. Am
-            ["G"],          # 4. C/G
-            ["A"],          # 5. F
-            ["G"],          # 6. C/E
-            ["G", "A"],     # 7. Dsus -> D/F#
-            ["B", "G", "A", "B"] # 8. G -> G/B
-        ]
-        st.write(melody_input)
+        st.divider()
+        st.info("Melodia (Input)")
+        
+        # Opção de Importação
+        uploaded_file = st.file_uploader("Importar MusicXML (.musicxml, .xml)", type=["musicxml", "xml"])
+        
+        melody_input = None
+        time_signature = "4/4"
+        score_title = "Harmonização"
+        score_composer = "AI"
+        
+        if uploaded_file is not None:
+            try:
+                # Lê o arquivo e extrai a melodia
+                file_content = uploaded_file.read()
+                parsed_data = MusicXMLParser.parse(file_content)
+                melody_input = parsed_data["measures"]
+                time_signature = parsed_data["time_signature"]
+                score_title = parsed_data.get("title", "Harmonização")
+                score_composer = parsed_data.get("composer", "AI")
+                
+                st.success(f"Arquivo importado! {len(melody_input)} compassos detectados. Compasso: {time_signature}")
+            except Exception as e:
+                st.error(f"Erro ao ler arquivo: {e}")
+        else:
+            st.info("Por favor, faça o upload de um arquivo MusicXML para começar.")
+            st.stop()
+        
+        st.write(f"Melodia Atual ({len(melody_input)} compassos):")
+        st.code(str(melody_input))
 
     # --- CORE LOGIC ---
     chords_db = get_bootstrap_data()
@@ -86,10 +103,12 @@ def main():
     # --- VISUALIZAÇÃO (TIMELINE) ---
     st.subheader("🎼 Timeline de Decisão Harmônica")
     
-    cols = st.columns(len(timeline))
-    
     for i, decision in enumerate(timeline):
-        with cols[i]:
+        # Quebra linha a cada 4 compassos
+        if i % 4 == 0:
+            cols = st.columns(4)
+            
+        with cols[i % 4]:
             # Cabeçalho do Compasso
             st.markdown(f"**Compasso {i+1}**")
             st.caption(f"Melodia: {melody_input[i]}")
@@ -148,10 +167,22 @@ def main():
             from src.view.score_view import ScoreView
             
             # Gera o objeto Score
-            score = ScoreView.create_score(melody, timeline)
+            score = ScoreView.create_score(
+                melody, 
+                timeline, 
+                time_signature=time_signature,
+                title=score_title,
+                composer=score_composer
+            )
+            
+            # Gera nome do arquivo de saída
+            # Ex: "minha_musica.xml" -> "minha_musica_harmonia.musicxml"
+            input_name = uploaded_file.name
+            base_name = input_name.rsplit('.', 1)[0]
+            output_filename = f"{base_name}_harmonia.musicxml"
             
             # Salva em arquivo temporário/output
-            filepath = ScoreView.save_xml(score, "harmonizacao_glassbox.musicxml")
+            filepath = ScoreView.save_xml(score, output_filename)
             
             # Lê o arquivo para permitir download
             with open(filepath, "rb") as f:
@@ -160,7 +191,7 @@ def main():
             st.download_button(
                 label="⬇️ Baixar MusicXML",
                 data=file_bytes,
-                file_name="harmonizacao_glassbox.musicxml",
+                file_name=output_filename,
                 mime="application/vnd.recordare.musicxml+xml"
             )
             st.success(f"Arquivo gerado! Clique acima para baixar.")

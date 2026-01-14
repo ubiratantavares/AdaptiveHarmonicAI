@@ -1,4 +1,4 @@
-from music21 import stream, note, chord, metadata
+from music21 import stream, note, chord, metadata, meter
 from typing import List
 import os
 from ..model.models import DecisionLog, MelodyModel
@@ -10,30 +10,35 @@ class ScoreView:
     """
 
     @staticmethod
-    def create_score(melody: MelodyModel, timeline: List[DecisionLog]) -> stream.Score:
+    def create_score(melody: MelodyModel, timeline: List[DecisionLog], time_signature: str = "4/4", title: str = "Harmonização", composer: str = "AI") -> stream.Score:
         """
         Gera um objeto stream.Score do music21 pronto para exportação.
         """
         score = stream.Score()
         score.insert(0, metadata.Metadata())
-        score.metadata.title = "Harmonização Algorítmica (Glass Box)"
-        score.metadata.composer = "AdaptiveHarmonicAI"
+        score.metadata.title = title
+        score.metadata.composer = composer
 
         # Part 1: Melodia
         part_melody = stream.Part()
         part_melody.id = "Melodia"
         part_melody.partName = "Melodia"
         
+        # Define Time Signature
+        ts = meter.TimeSignature(time_signature)
+        part_melody.insert(0, ts)
+        
         for measure_notes in melody.measures:
             m = stream.Measure()
-            # Assume 4/4 e notas iguais para simplificar MVP (cada nota = 1 semínima se forem 4 notas)
-            # Se a lista de notas for menor, ajusta a duração.
-            # Ex: 1 nota = Semibreve (4.0), 2 notas = Mínimas (2.0), 4 notas = Semínimas (1.0)
-            duration = 4.0 / max(len(measure_notes), 1)
             
-            for n_name in measure_notes:
-                n = note.Note(n_name)
-                n.quarterLength = duration
+            for melody_note in measure_notes:
+                if melody_note.is_rest:
+                    n = note.Rest()
+                else:
+                    n = note.Note(melody_note.name)
+                    n.octave = melody_note.octave
+                
+                n.quarterLength = melody_note.duration
                 m.append(n)
             part_melody.append(m)
 
@@ -41,6 +46,9 @@ class ScoreView:
         part_harmony = stream.Part()
         part_harmony.id = "Harmonia"
         part_harmony.partName = "Harmonia (IA)"
+        
+        # Define Time Signature for Harmony Part too
+        part_harmony.insert(0, meter.TimeSignature(time_signature))
 
         for decision in timeline:
             m = stream.Measure()
@@ -48,7 +56,7 @@ class ScoreView:
             # Se não houve decisão válida (N/A), insere pausa
             if decision.chord_name == "N/A":
                 r = note.Rest()
-                r.quarterLength = 4.0
+                r.quarterLength = ts.barDuration.quarterLength
                 m.append(r)
             else:
                 # Cria o acorde usando as notas exatas (Voices) da decisão
@@ -59,7 +67,7 @@ class ScoreView:
                     # Fallback se não houver notas (compatibilidade)
                     c = chord.Chord(decision.chord_name)
                 
-                c.quarterLength = 4.0 # Acorde dura o compasso todo
+                c.quarterLength = ts.barDuration.quarterLength # Acorde dura o compasso todo
                 c.addLyric(decision.function) # Adiciona a função como letra/texto
                 
                 # Adiciona o nome do acorde como anotação (opcional, mas útil)

@@ -2,7 +2,7 @@ import sys
 import os
 
 # Adiciona o diretório raiz ao path para permitir imports relativos/absolutos corretamente
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 
 from src.model.models import ChordModel, MelodyModel
 from src.service.math_services import ProbabilityService
